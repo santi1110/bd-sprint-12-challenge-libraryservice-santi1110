@@ -24,6 +24,12 @@ import static org.mockito.Mockito.times;
 @SpringBootTest
 public class CheckableServiceTest {
 
+    @Autowired
+    private CheckableService checkableService;
+
+    @MockBean
+    private CheckableRepository checkableRepository;
+
     //TODO: Inject dependencies and mocks
 
     private List<Checkable> checkables;
@@ -45,6 +51,83 @@ public class CheckableServiceTest {
                         new Ticket("3-1", "National Park Day Pass")
                 )
         );
+    }
+    @Test
+    void getAll() {
+        Mockito.when(checkableRepository.findAll()).thenReturn(checkables);
+        List<Checkable> allCheckables = checkableService.getAll();
+        assertEquals(8, allCheckables.size());
+    }
+
+    @Test
+    void getAll_emptyList() {
+        Mockito.when(checkableRepository.findAll()).thenReturn(new ArrayList<>());
+        List<Checkable> allCheckables = checkableService.getAll();
+        assertTrue(allCheckables.isEmpty());
+    }
+
+    @Test
+    void getByIsbn_existingIsbn() {
+        Mockito.when(checkableRepository.findByIsbn("1-0")).thenReturn(Optional.of(checkables.get(0)));
+        Checkable checkable = checkableService.getByIsbn("1-0");
+        assertEquals("The White Whale", checkable.getTitle());
+    }
+
+    @Test
+    void getByIsbn_nonExistingIsbn() {
+        Mockito.when(checkableRepository.findByIsbn("non-existing")).thenReturn(Optional.empty());
+        assertThrows(CheckableNotFoundException.class, () -> {
+            checkableService.getByIsbn("non-existing");
+        });
+    }
+
+    @Test
+    void getByType_existingType() {
+        Mockito.when(checkableRepository.findByType(Media.class)).thenReturn(Optional.of(checkables.get(0)));
+        Checkable checkable = checkableService.getByType(Media.class);
+        assertEquals("The White Whale", checkable.getTitle());
+    }
+
+    @Test
+    void getByType_nonExistingType() {
+        Mockito.when(checkableRepository.findByType(NonExistentType.class)).thenReturn(Optional.empty());
+        assertThrows(CheckableNotFoundException.class, () -> {
+            checkableService.getByType(NonExistentType.class);
+        });
+    }
+
+    @Test
+    void save_newCheckable() {
+        Mockito.when(checkableRepository.findAll()).thenReturn(checkables);
+        Checkable newCheckable = new Media("1-4", "New Title", "Author", MediaType.BOOK);
+        checkableService.save(newCheckable);
+        Mockito.verify(checkableRepository).save(newCheckable);
+    }
+
+    @Test
+    void save_existingIsbn_throwsResourceExistsException() {
+        Mockito.when(checkableRepository.findAll()).thenReturn(checkables);
+        Checkable existingCheckable = new Media("1-0", "Duplicate Title", "Author", MediaType.BOOK);
+        assertThrows(ResourceExistsException.class, () -> {
+            checkableService.save(existingCheckable);
+        });
+        Mockito.verify(checkableRepository, Mockito.never()).save(existingCheckable);
+    }
+
+    @Test
+    void save_checkableWithNullValues() {
+        Mockito.when(checkableRepository.findAll()).thenReturn(new ArrayList<>());
+        Checkable nullCheckable = new Media(null, null, null, null);
+        checkableService.save(nullCheckable);
+        Mockito.verify(checkableRepository).save(nullCheckable);
+    }
+
+    @Test
+    void save_checkableWhenRepositoryIsEmpty() {
+        Mockito.when(checkableRepository.findAll()).thenReturn(new ArrayList<>());
+        Checkable newCheckable = new Media("1-5", "Unique Title", "Unique Author", MediaType.BOOK);
+        checkableService.save(newCheckable);
+        Mockito.verify(checkableRepository).save(newCheckable);
     }
 
     //TODO: Write Unit Tests for all CheckableService methods and possible Exceptions
